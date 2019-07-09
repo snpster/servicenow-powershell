@@ -19,7 +19,7 @@ function Get-ServiceNowTableEntry {
 
     #>
 
-    [CmdletBinding(DefaultParameterSetName)]
+    [CmdletBinding(DefaultParameterSetName, SupportsPaging)]
     param(
         # Table containing the entry we're deleting
         [parameter(mandatory = $true)]
@@ -36,7 +36,12 @@ function Get-ServiceNowTableEntry {
 
         # Maximum number of records to return
         [parameter(Mandatory = $false)]
-        [int]$Limit = 10,
+        [int]$Limit,
+
+        # Fields to return
+        [Parameter(Mandatory = $false)]
+        [Alias('Fields')]
+        [string[]]$Properties,
 
         # Hashtable containing machine field names and values returned must match exactly (will be combined with AND)
         [parameter(Mandatory = $false)]
@@ -81,7 +86,7 @@ function Get-ServiceNowTableEntry {
         $getServiceNowTableSplat = @{
             Table         = $Table
             Query         = $Query
-            Limit         = $Limit
+            Fields        = $Properties
             DisplayValues = $DisplayValues
             ErrorAction   = 'Stop'
         }
@@ -89,13 +94,23 @@ function Get-ServiceNowTableEntry {
         # Update the Table Splat if an applicable parameter set name is in use
         Switch ($PSCmdlet.ParameterSetName) {
             'SpecifyConnectionFields' {
-                $getServiceNowTableSplat.Add('ServiceNowCredential', $Credential)
+                $getServiceNowTableSplat.Add('Credential', $Credential)
                 $getServiceNowTableSplat.Add('ServiceNowURL', $ServiceNowURL)
             }
             'UseConnectionObject' {
                 $getServiceNowTableSplat.Add('Connection', $Connection)
             }
             Default {}
+        }
+
+        # Only add the Limit parameter if it was explicitly provided
+        if ($PSBoundParameters.ContainsKey('Limit')) {
+            $getServiceNowTableSplat.Add('Limit', $Limit)
+        }
+
+        # Add all provided paging parameters
+        ($PSCmdlet.PagingParameters | Get-Member -MemberType Property).Name | Foreach-Object {
+            $getServiceNowTableSplat.Add($_, $PSCmdlet.PagingParameters.$_)
         }
 
         # Perform table query and return each object.  No fancy formatting here as this can pull tables with unknown default properties
