@@ -129,8 +129,14 @@ function Get-ServiceNowTable {
 
     # Perform table query and capture results
     $Uri = $ServiceNowURL + "/table/$Table"
-    $Result = (Invoke-RestMethod -Uri $Uri -Credential $Credential -Body $Body -ContentType "application/json").Result
-
+    try
+    {
+        $Result = (Invoke-RestMethod -Uri $Uri -Credential $ServiceNowCredential -Body $Body -ContentType "application/json").Result
+    }
+    catch
+    {
+        Return $false
+    }
     # Convert specific fields to DateTime format
     $ConvertToDateField = @('closed_at', 'expected_start', 'follow_up', 'opened_at', 'sys_created_on', 'sys_updated_on', 'work_end', 'work_start')
     ForEach ($SNResult in $Result) {
